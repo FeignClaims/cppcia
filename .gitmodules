@@ -1,0 +1,3 @@
+[submodule "example/cmake_starter_template"]
+	path = example/cmake_starter_template
+	url = https://github.com/FeignClaims/cmake_starter_template.git

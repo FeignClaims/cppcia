@@ -1,0 +1,31 @@
+add_executable(practice EXCLUDE_FROM_ALL)
+target_sources(practice
+  PRIVATE
+  bootstrap.cpp
+)
+target_link_libraries(practice
+  PRIVATE
+  cppcia_project_options
+  cppcia_project_warnings
+)
+
+target_find_dependencies(practice
+  PRIVATE_CONFIG
+  Boost
+  fmt
+  llvm
+  Microsoft.GSL
+  nlohmann_json
+  range-v3
+  spdlog
+)
+target_link_system_libraries(practice
+  PRIVATE
+  boost::boost
+  fmt::fmt
+  llvm::llvm
+  Microsoft.GSL::GSL
+  nlohmann_json::nlohmann_json
+  range-v3::range-v3
+  spdlog::spdlog
+)

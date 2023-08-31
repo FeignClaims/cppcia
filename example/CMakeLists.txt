@@ -1,0 +1,7 @@
+add_subdirectory(ast_dump)
+add_subdirectory(ast_importer)
+add_subdirectory(cppgrep)
+add_subdirectory(find_declarations)
+add_subdirectory(find_name)
+add_subdirectory(loop_convert)
+add_subdirectory(practice)
