@@ -90,6 +90,16 @@ jobs:
         #     compiler: gcc
 
     steps:
+      - name: Linux - Maximize build disk space
+        uses: easimon/maximize-build-space@v8
+        if: runner.os == 'Linux'
+        with:
+          root-reserve-mb: 30720
+          swap-size-mb: 1024
+          remove-android: "true"
+          remove-docker-images: "true"
+          remove-dotnet: "true"
+
       - uses: actions/checkout@v4
 
       - name: Setup Cpp
