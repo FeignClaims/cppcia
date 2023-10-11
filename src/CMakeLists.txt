@@ -1,0 +1,2 @@
+add_subdirectory(cppcia)
+add_subdirectory(indexer)

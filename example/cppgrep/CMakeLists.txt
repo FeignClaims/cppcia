@@ -11,7 +11,6 @@ target_link_libraries(cppgrep
 
 target_find_dependencies(cppgrep
   PRIVATE_CONFIG
-  llvm
   Microsoft.GSL
 )
 target_link_system_libraries(cppgrep

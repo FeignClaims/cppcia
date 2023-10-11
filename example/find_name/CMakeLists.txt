@@ -11,7 +11,6 @@ target_link_libraries(find_name
 
 target_find_dependencies(find_name
   PRIVATE_CONFIG
-  llvm
   Microsoft.GSL
 )
 target_link_system_libraries(find_name

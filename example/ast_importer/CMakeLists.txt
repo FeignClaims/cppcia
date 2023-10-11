@@ -9,10 +9,6 @@ target_link_libraries(ast_importer
   cppcia_project_warnings
 )
 
-target_find_dependencies(ast_importer
-  PRIVATE_CONFIG
-  llvm
-)
 target_link_system_libraries(ast_importer
   PRIVATE
   llvm::llvm

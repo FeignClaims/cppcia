@@ -13,7 +13,6 @@ target_find_dependencies(find_declaration
   PRIVATE_CONFIG
   Boost
   fmt
-  llvm
   Microsoft.GSL
   nlohmann_json
   range-v3

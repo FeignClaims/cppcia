@@ -2,12 +2,21 @@ from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import copy, rm, rmdir
+from conan.tools.scm import Version
+import os
 
 
-class starterRecipe(ConanFile):
-    name = "starter"
-    settings = "os", "compiler", "build_type", "arch"
-
+class CppciaRecipe(ConanFile):
+    name = "cppcia"
+    description = "Change Impact Analysis tool for C++"
+    license = "Unlicense"
+    url = "https://github.com/FeignClaims/cppcia"
+    homepage = "https://github.com/FeignClaims/cppcia"
+    topics = ("tool", "change-impact-analysis")
+    package_type = "application"
+    settings = "os", "arch", "compiler", "build_type"
+    version = "0.0.1"
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
@@ -21,8 +30,8 @@ class starterRecipe(ConanFile):
     }
 
     def config_options(self):
-        if self.settings.get_safe("os") == "Windows":
-            self.options.rm_safe("fPIC")
+        if self.settings.os == "Windows":
+            del self.options.fPIC
 
     def configure(self):
         if self.options.shared:
@@ -35,9 +44,12 @@ class starterRecipe(ConanFile):
 
     def requirements(self):
         self.requires("boost/1.83.0")
+        self.requires("clangd_headers/16.0.6")
         self.requires("fmt/10.1.1", force=True)
         if self.options.with_llvm:
             self.requires("llvm/16.0.6")
+        else:
+            self.requires("llvm/system")
         self.requires("ms-gsl/4.0.0")
         self.requires("nlohmann_json/3.11.2")
         self.requires("range-v3/0.12.0")
@@ -45,11 +57,31 @@ class starterRecipe(ConanFile):
         self.requires("zlib/1.2.13", override=True)
 
     @property
+    def _min_cppstd(self):
+        return 20
+
+    @property
+    def _compilers_minimum_version(self):
+        return {"msvc": "193",
+                "gcc": "11",
+                "clang": "13",
+                "apple-clang": "14"}
+
+    def _validate_cppstd(self):
+        if self.settings.compiler.get_safe("cppstd"):
+            check_min_cppstd(self, self._min_cppstd)
+        minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
+        if minimum_version and Version(self.settings.compiler.version) < minimum_version:
+            raise ConanInvalidConfiguration(
+                f"{self.ref} requires C++{self._min_cppstd}, which your compiler does not support."
+            )
+
+    @property
     def _required_options(self):
         options = []
+        options.append(("clangd_headers", [("with_llvm", self.options.with_llvm)]))
         if self.options.with_llvm:
-            options.append(("llvm",
-                            [("with_project_clang", True)]))
+            options.append(("llvm", [("with_project_clang", True)]))
         options.append(("boost",
                        [("without_graph", False)]))
         return options
@@ -79,10 +111,35 @@ class starterRecipe(ConanFile):
         CMakeDeps(self).generate()
         toolchain = CMakeToolchain(self)
         toolchain.presets_prefix = ""
-        toolchain.cache_variables["BUILDING_LLVM_BY_CONAN"] = self.options.get_safe(
-            "with_llvm", True)
+        toolchain.cache_variables["USE_SYSTEM_LLVM"] = not self.options.get_safe("with_llvm", False)
         toolchain.generate()
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
+        if not self.conf.get("tools.build:skip_test", default=False):
+            cmake.test()
 
     def package(self):
         cmake = CMake(self)
         cmake.install()
+
+    def package(self):
+        copy(self, pattern="LICENSE", dst=os.path.join(self.package_folder, "licenses"), src=self.source_folder)
+        cmake = CMake(self)
+        cmake.install()
+
+        # some files extensions and folders are not allowed. Please, read the FAQs to get informed.
+        rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "share"))
+        rm(self, "*.la", os.path.join(self.package_folder, "lib"))
+        rm(self, "*.pdb", os.path.join(self.package_folder, "lib"))
+        rm(self, "*.pdb", os.path.join(self.package_folder, "bin"))
+
+    def package_info(self):
+        self.cpp_info.libs = ["cppcia"]
+
+        self.cpp_info.set_property("cmake_file_name", "cppcia")
+        self.cpp_info.set_property("cmake_target_name", "cppcia::cppcia")

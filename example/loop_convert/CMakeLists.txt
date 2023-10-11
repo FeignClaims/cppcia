@@ -11,7 +11,6 @@ target_link_libraries(loop_convert
 
 target_find_dependencies(loop_convert
   PRIVATE_CONFIG
-  llvm
   Microsoft.GSL
 )
 target_link_system_libraries(loop_convert
