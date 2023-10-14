@@ -6,3 +6,13 @@ compiler.cppstd=20
 compiler.libcxx=libc++
 compiler.version=17
 os=Macos
+llvm/*:build_type=Release
+
+[options]
+with_llvm=True
+llvm/*:enable_unsafe_mode=True
+llvm/*:llvm_build_llvm_dylib=True
+llvm/*:llvm_link_llvm_dylib=True
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja Multi-Config

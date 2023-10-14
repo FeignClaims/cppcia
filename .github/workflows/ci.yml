@@ -23,71 +23,35 @@ jobs:
     strategy:
       fail-fast: false
 
-      # Recommendations:
-      #   * support at least 2 operating systems
-      #   * support at least 2 compilers
-      #   * make sure all supported configurations for your project are built
-      #
-      # Disable/enable builds in this list to meet the above recommendations
-      # and your own projects needs
       matrix:
         os:
           - ubuntu-22.04
           - windows-2022
         compiler:
-          # you can specify the version after `-` like "llvm-13.0.0".
-          # - llvm
           - gcc-11
+          - msvc
         build_type:
           - Debug
           - Release
-        cmake_generator:
-          - "Ninja Multi-Config"
         cpack_generator:
           - ZIP
 
         exclude:
-          # - os: ubuntu-22.04
-          #   compiler: llvm
-          # - os: windows-2022
-          #   compiler: llvm
+          - os: ubuntu-22.04
+            compiler: msvc
           - os: windows-2022
             compiler: gcc-11
 
         include:
           # Inject gcov_executable variable
-          # - compiler: llvm
-          #   gcov_executable: "llvm-cov gcov"
           - compiler: gcc-11
             gcov_executable: gcov-11
 
           # Inject actual compiler name
-          # - compiler: llvm
-          #  compiler_name: clang
           - compiler: gcc-11
             compiler_name: gcc
-
-          # Add msvc compiler for Windows
-          - os: windows-2022
-            compiler: msvc
-            build_type: Debug
-            cmake_generator: "Visual Studio 17 2022"
-            cpack_generator: ZIP
+          - compiler: msvc
             compiler_name: msvc
-
-          - os: windows-2022
-            compiler: msvc
-            build_type: Release
-            cmake_generator: "Visual Studio 17 2022"
-            cpack_generator: ZIP
-            compiler_name: msvc
-
-          # Choose the corresponding profile
-
-        # To exclude a specific job from the matrix (e.g gcc on Windows), you can use this syntax.
-        # exclude:
-        #   - os: windows-2022
-        #     compiler: gcc
 
     steps:
       - name: Linux - Maximize build disk space
@@ -136,7 +100,7 @@ jobs:
           git clone https://github.com/llvm/llvm-project.git
           cd llvm-project
           git checkout llvmorg-16.0.6
-          cmake -S llvm -B build -G '${{ matrix.cmake_generator }}' -A X64 -Thost=x64 -DCMAKE_INSTALL_PREFIX=C:/llvm_install/ -DLLVM_ENABLE_ABI_BREAKING_CHECKS=OFF -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_THREADS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -S llvm -B build -G 'Visual Studio 17 2022' -A X64 -Thost=x64 -DCMAKE_INSTALL_PREFIX=C:/llvm_install/ -DLLVM_ENABLE_ABI_BREAKING_CHECKS=OFF -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_THREADS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
           cmake --build build --config Release -t install
 
@@ -177,12 +141,7 @@ jobs:
         id: conan
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "args=-pr:h '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -pr:b '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -c 'tools.cmake.cmaketoolchain:generator=${{ matrix.cmake_generator }}' -s 'build_type=${{ matrix.build_type }}' -b missing" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            echo "args=-pr:h '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -pr:b '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -c 'tools.cmake.cmaketoolchain:generator=${{ matrix.cmake_generator }}' -s 'build_type=${{ matrix.build_type }}' -o with_llvm=True -s 'llvm/*:build_type=Release' -o 'llvm/*:enable_unsafe_mode=True' -b missing" >> "$GITHUB_OUTPUT"
-          fi
+          echo "args=-pr:h '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -pr:b '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -b missing" >> "$GITHUB_OUTPUT"
 
       - name: Install conan packages
         run: |
