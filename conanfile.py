@@ -45,10 +45,8 @@ class CppciaRecipe(ConanFile):
     def requirements(self):
         if self.options.with_llvm:
             self.requires("clangd_headers/16.0.6")
-            self.requires("llvm/16.0.6")
         else:
             self.requires("clangd_headers/system")
-            self.requires("llvm/system")
         self.requires("boost/1.83.0")
         self.requires("fmt/10.1.1", force=True)
         self.requires("ms-gsl/4.0.0")
@@ -80,10 +78,7 @@ class CppciaRecipe(ConanFile):
     @property
     def _required_options(self):
         options = []
-        if self.options.with_llvm:
-            options.append(("llvm", [("with_project_clang", True), ("with_project_clang-tools-extra", True)]))
-        options.append(("boost",
-                       [("without_graph", False)]))
+        options.append(("boost", [("without_graph", False)]))
         return options
 
     def _strict_options_requirements(self):
