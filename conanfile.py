@@ -81,7 +81,7 @@ class CppciaRecipe(ConanFile):
     def _required_options(self):
         options = []
         if self.options.with_llvm:
-            options.append(("llvm", [("with_project_clang", True), ("with_project_clang-extra-tools", True)]))
+            options.append(("llvm", [("with_project_clang", True), ("with_project_clang-tools-extra", True)]))
         options.append(("boost",
                        [("without_graph", False)]))
         return options
