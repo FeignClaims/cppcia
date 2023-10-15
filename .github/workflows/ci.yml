@@ -136,6 +136,7 @@ jobs:
           conan export conan/recipes/llvm/all --version 16.0.6
           conan export conan/recipes/llvm/system --version system
           conan export conan/recipes/clangd_headers/all --version 16.0.6
+          conan export conan/recipes/clangd_headers/all --version system
 
       - name: Retrieve conan args
         id: conan
