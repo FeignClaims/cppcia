@@ -6,7 +6,7 @@ import os
 required_conan_version = ">=2.0.0"
 
 
-class LlvmWrapperConan(ConanFile):
+class SystemLlvmConan(ConanFile):
     name = 'llvm'
     description = 'The LLVM Project is a collection of modular and reusable compiler and toolchain technologies'
     url = 'https://github.com/conan-io/conan-center-index'

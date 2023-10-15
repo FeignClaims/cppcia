@@ -147,6 +147,11 @@ jobs:
         run: |
           conan install . ${{ steps.conan.outputs.args }}
 
+      - name: Clean unused conan caches
+        run: |
+          conan clean --force
+          conan cache clean
+
       - name: Save conan cache even when failed afterwards
         uses: actions/cache/save@v3
         with:

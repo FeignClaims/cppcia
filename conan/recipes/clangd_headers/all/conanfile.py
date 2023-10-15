@@ -3,7 +3,7 @@ from conan.errors import ConanInvalidConfiguration
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout
 from conan.tools.files import apply_conandata_patches, export_conandata_patches, get, copy
-from conan.tools.scm import Version
+from conan.tools.scm import Git, Version
 import os
 
 
@@ -20,12 +20,6 @@ class ClangdHeadersConan(ConanFile):
     package_type = "header-library"
     settings = "os", "arch", "compiler", "build_type"
     no_copy_source = True
-    options = {
-        "with_llvm": [True, False]
-    }
-    default_options = {
-        "with_llvm": True
-    }
 
     @property
     def _min_cppstd(self):
@@ -45,19 +39,15 @@ class ClangdHeadersConan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
-        if self.options.with_llvm:
-            self.requires("llvm/16.0.6")
-        else:
-            self.requires("llvm/system")
+        self.requires(f"llvm/{self.version}")
 
     def package_id(self):
-        del self.info.options.with_llvm
         self.info.clear()
 
     @property
     def _required_options(self):
         options = []
-        if self.options.with_llvm:
+        if self.version != "system":
             options.append(("llvm",
                             [("with_project_clang", True), ("with_project_clang-tools-extra", True)]))
         return options
@@ -81,7 +71,10 @@ class ClangdHeadersConan(ConanFile):
         self._validate_options_requirements()
 
     def source(self):
-        get(self, **self.conan_data["sources"][self.version], strip_root=True)
+        if self.version == "system":
+            Git(self).fetch_commit(**self.conan_data["sources"][self.version])
+        else:
+            get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
     def generate(self):
         toolchain = CMakeToolchain(self, "Ninja")

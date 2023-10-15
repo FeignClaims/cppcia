@@ -43,13 +43,14 @@ class CppciaRecipe(ConanFile):
         cmake_layout(self)
 
     def requirements(self):
-        self.requires("boost/1.83.0")
-        self.requires("clangd_headers/16.0.6")
-        self.requires("fmt/10.1.1", force=True)
         if self.options.with_llvm:
+            self.requires("clangd_headers/16.0.6")
             self.requires("llvm/16.0.6")
         else:
+            self.requires("clangd_headers/system")
             self.requires("llvm/system")
+        self.requires("boost/1.83.0")
+        self.requires("fmt/10.1.1", force=True)
         self.requires("ms-gsl/4.0.0")
         self.requires("nlohmann_json/3.11.2")
         self.requires("range-v3/0.12.0")
@@ -79,9 +80,8 @@ class CppciaRecipe(ConanFile):
     @property
     def _required_options(self):
         options = []
-        options.append(("clangd_headers", [("with_llvm", self.options.with_llvm)]))
         if self.options.with_llvm:
-            options.append(("llvm", [("with_project_clang", True)]))
+            options.append(("llvm", [("with_project_clang", True), ("with_project_clang-extra-tools", True)]))
         options.append(("boost",
                        [("without_graph", False)]))
         return options
