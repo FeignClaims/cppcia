@@ -132,10 +132,9 @@ jobs:
 
       - name: Export customized conan packages # TODO: https://github.com/conan-io/conan/pull/13930
         run: |
-          conan export conan/recipes/boost-ext-ut/all --version cci.20230709
-          conan export conan/recipes/llvm/all --version 16.0.6
+          conan export conan/recipes/llvm/all --version 17.0.2
           conan export conan/recipes/llvm/system --version system
-          conan export conan/recipes/clangd_headers/all --version 16.0.6
+          conan export conan/recipes/clangd_headers/all --version 17.0.2
           conan export conan/recipes/clangd_headers/all --version system
 
       - name: Retrieve conan args
