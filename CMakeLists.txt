@@ -4,7 +4,7 @@ project(cppcia VERSION 0.0.1 LANGUAGES C CXX)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Customize project_options
-include(CustomizedProjectOptions)
+include(enable_customized_project_options)
 
 # Options
 option(BUILD_TESTING "Building the testing tree." ON)
@@ -12,16 +12,16 @@ option(BUILD_FUZZ_TESTING "Enable the fuzz tests" ON)
 
 # workaround: RPATH stuff
 # !!!NOT RECOMMENDED!!! see https://github.com/ossf/wg-best-practices-os-developers/blob/main/docs/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C%2B%2B.md
-include(Rpath)
+include(rpath)
 
 # Add LLVM dependencies
-include(LLVM)
+include(llvm)
 
 # Include CTest before any tests
 include(CTest)
 
 # Add handy test wrappers
-include(AddTest)
+include(add_test)
 
 # Common test config
 add_test_config(common
@@ -34,7 +34,6 @@ add_test_config(common
 
 # Add src
 add_subdirectory(example)
-add_subdirectory(src)
 
 # Set the startup project for the "play" button in MSVC
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT cppcia)
@@ -42,7 +41,6 @@ set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT cppcia)
 # Package the project
 package_project(
   TARGETS
-  cppcia
 )
 
 set(CPACK_PACKAGE_FILE_NAME

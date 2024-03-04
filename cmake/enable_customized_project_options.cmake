@@ -1,11 +1,12 @@
 # - Customization point for project_options
-# This module fetches project_options and sets all customization on project_options
+# This module sets all customization on dynamic_project_options
 #
-# Include this module in the main CMakeLists.txt before `project()` (for vcpkg) or right after `project()` to make use
+# Include this module right after `project()` to make use
+#
+# If conan2 or vcpkg is requried, include(fetch_project_options) separately and invoke `run_conan2()` or `run_vcpkg()`
 include_guard()
 
-include(${CMAKE_CURRENT_LIST_DIR}/ProjectOptions.cmake)
-fetch_project_options(https://github.com/aminya/project_options.git v0.32.1)
+include(${CMAKE_CURRENT_LIST_DIR}/fetch_project_options.cmake)
 
 # compile_commands.json
 set(ENABLE_COMPILE_COMMANDS_SYMLINK_DEFAULT ON)
@@ -15,16 +16,19 @@ set(ENABLE_CONTROL_FLOW_PROTECTION_DEFAULT ON)
 set(ENABLE_ELF_PROTECTION_DEFAULT OFF)
 set(ENABLE_OVERFLOW_PROTECTION_DEFAULT ON)
 set(ENABLE_RUNTIME_SYMBOLS_RESOLUTION_DEFAULT ON)
-
-if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(ENABLE_STACK_PROTECTION_DEFAULT OFF)
 else()
   set(ENABLE_STACK_PROTECTION_DEFAULT ON)
 endif()
 
+# optimization
+set(ENABLE_INTERPROCEDURAL_OPTIMIZATION ON)
+set(ENABLE_NATIVE_OPTIMIZATION_DEFAULT ON)
+
 dynamic_project_options(
   PREFIX
-  "cppcia"
+  "starter" # set a prefix in case this project is used as a subproject
 
   MSVC_WARNINGS
   /W4 # Baseline reasonable warnings
