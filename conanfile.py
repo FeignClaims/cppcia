@@ -44,16 +44,16 @@ class CppciaRecipe(ConanFile):
 
     def requirements(self):
         if self.options.with_llvm:
-            self.requires("clangd_headers/16.0.6")
+            self.requires("clangd_headers/17.0.2")
         else:
             self.requires("clangd_headers/system")
-        self.requires("boost/1.83.0")
-        self.requires("fmt/10.1.1", force=True)
+        self.requires("boost/1.84.0")
+        self.requires("fmt/10.2.1", force=True)
         self.requires("ms-gsl/4.0.0")
-        self.requires("nlohmann_json/3.11.2")
+        self.requires("nlohmann_json/3.11.3")
         self.requires("range-v3/0.12.0")
-        self.requires("spdlog/1.12.0")
-        self.requires("zlib/1.2.13", override=True)
+        self.requires("spdlog/1.13.0")
+        self.requires("zlib/1.3.1", override=True)
 
     @property
     def _min_cppstd(self):
@@ -99,8 +99,8 @@ class CppciaRecipe(ConanFile):
         self._validate_options_requirements()
 
     def build_requirements(self):
-        self.tool_requires("cmake/[>=3.25 <4.0.0]")
-        self.test_requires("boost-ext-ut/cci.20230709")
+        self.tool_requires("cmake/[>=3.28 <4.0.0]")
+        self.test_requires("catch2/3.5.2")
 
     def generate(self):
         CMakeDeps(self).generate()

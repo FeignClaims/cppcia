@@ -15,7 +15,7 @@ class ClangdHeadersConan(ConanFile):
     name = "clangd_headers"
     description = "headers for clangd"
     license = "Apache-2.0"
-    url = 'https://github.com/llvm/llvm-project'
+    url = "https://github.com/FeignClaims/customized_conan_recipes"
     homepage = 'https://github.com/llvm/llvm-project'
     topics = ("cpp", "compiler", "tooling", "clang")
     package_type = "header-library"
@@ -70,6 +70,10 @@ class ClangdHeadersConan(ConanFile):
         if self.settings.compiler.get_safe("cppstd"):
             check_min_cppstd(self, self._min_cppstd)
         self._validate_options_requirements()
+
+    def build_requirements(self):
+        self.build_requires("cmake/[>=3.21.3 <4.0.0]")
+        self.build_requires("ninja/[>=1.10.0 <2.0.0]")
 
     def source(self):
         if self.version == "system":

@@ -11,6 +11,7 @@ llvm/*:build_type=Release
 [options]
 with_llvm=True
 llvm/*:enable_unsafe_mode=True
+llvm/*:conan_center_index_limits=False
 llvm/*:llvm_build_llvm_dylib=True
 llvm/*:llvm_link_llvm_dylib=True
 

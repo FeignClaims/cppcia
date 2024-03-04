@@ -1,4 +1,7 @@
 sources:
+  "17.0.2":
+    url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.2.tar.gz
+    sha256: dcba3eb486973dce45b6edfe618f3f29b703ae7e6ef9df65182fb50fb6fe4235
   "16.0.6":
     url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-16.0.6.tar.gz
     sha256: 56b2f75fdaa95ad5e477a246d3f0d164964ab066b4619a01836ef08e475ec9d5

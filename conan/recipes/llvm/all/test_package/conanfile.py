@@ -1,7 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import cmake_layout, CMakeDeps, CMakeToolchain, CMake
 from conan.tools.build import cross_building
-import os
 import re
 
 
@@ -15,8 +14,8 @@ class TestPackageConan(ConanFile):
         self.requires(self.tested_reference_str)
 
     def build_requirements(self):
-        self.build_requires("cmake/[>=3.21.3 <4.0.0]")
-        self.build_requires("ninja/[>=1.10.0 <2.0.0]")
+        self.tool_requires("cmake/[>=3.21.3 <4.0.0]")
+        self.tool_requires("ninja/[>=1.10.0 <2.0.0]")
 
     def generate(self):
         deps = CMakeDeps(self)
@@ -53,5 +52,4 @@ class TestPackageConan(ConanFile):
 
     def test(self):
         if not cross_building(self, self.settings):
-            cmd = os.path.join(self.cpp.build.bindir, "test_package")
-            self.run(cmd, env="conanrun")
+            self.run("./test_package")

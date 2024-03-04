@@ -26,12 +26,10 @@ include(AddTest)
 # Common test config
 add_test_config(common
   DEPENDENCIES_CONFIG
-  ut
 
   LIBRARIES
   cppcia_project_options
   cppcia_project_warnings
-  boost-ext-ut::ut
 )
 
 # Add src

@@ -7,6 +7,7 @@ from conan.errors import ConanInvalidConfiguration
 from collections import defaultdict
 from conan.errors import ConanException
 from conan.tools.scm import Version
+from pathlib import Path
 import os
 import shutil
 import glob
@@ -55,7 +56,7 @@ default_runtimes = [
 class Llvm(ConanFile):
     name = 'llvm'
     description = 'The LLVM Project is a collection of modular and reusable compiler and toolchain technologies'
-    url = 'https://github.com/conan-io/conan-center-index'
+    url = "https://github.com/FeignClaims/customized_conan_recipes"
     homepage = 'https://github.com/llvm/llvm-project'
     license = 'Apache-2.0'
     topics = 'cpp', 'compiler', 'tooling', 'clang'
@@ -99,9 +100,10 @@ class Llvm(ConanFile):
             'with_z3': [True, False],
             'with_ffi': [True, False],
             'with_zlib': [True, False],
-            'with_zstd': [True, False],
-            'use_static_zstd': [True, False],
             'with_xml2': [True, False],
+            'with_curl': [True, False],
+            'with_zstd': [True, False],
+            'with_httplib': [True, False],
             'keep_binaries_regex': ['ANY'],
 
             # options removed in package id
@@ -142,9 +144,11 @@ class Llvm(ConanFile):
             'with_z3': False,
             'with_ffi': False,
             'with_zlib': True,
+            # TODO curl 7.76.0 check is failing in config-ix.cmake
+            'with_curl': False,
             'with_zstd': True,
-            'use_static_zstd': False,
-            # XXX default True, issues with liblldb.so and conan: Findlibxml2.cmake not provided
+            'with_httplib': False,
+            # TODO default True, issues with liblldb.so and conan: Findlibxml2.cmake not provided
             'with_xml2': False,
             'keep_binaries_regex': '^$',
 
@@ -187,8 +191,20 @@ class Llvm(ConanFile):
             self.output.warning(
                 "BUILD_SHARED_LIBS is only recommended for use by LLVM developers. If you want to build LLVM as a shared library, you should use the LLVM_BUILD_LLVM_DYLIB option.")
 
-        if self.options.with_zstd:
-            self.options["zstd"].shared = not self.options.use_static_zstd
+        release = Version(self.version).major
+        unsupported_options = []
+        if release < 14:
+            unsupported_options.append('with_curl')
+        if release < 15:
+            unsupported_options.append('with_zstd')
+            unsupported_options.append('with_httplib')
+        # TODO fix with_zstd and llvm 17
+        if release >= 17:
+            self.output.warning(f"with_zstd will fail in llvm 17 with conan 2")
+            unsupported_options.append('with_zstd')
+        for opt in unsupported_options:
+            self.output.warning(f"{opt} is unsupported in llvm {release}")
+            self.options.rm_safe(opt)
 
     def validate(self):
         if self.is_windows():
@@ -200,9 +216,6 @@ class Llvm(ConanFile):
                     raise ConanInvalidConfiguration(
                         "Generating libLLVM is not supported on MSVC"
                     )
-                if not str(self.settings.compiler.runtime) in ['MD', 'MT', 'MTd', 'MDd']:
-                    raise ConanInvalidConfiguration(
-                        "Current setting for compiler runtime isn't one of MD, MT, MTd, MDd which is required for LLVM and I have no clue how to map it. Feel free to contribute it.")
 
         try:
             re.compile(str(self.options.keep_binaries_regex))
@@ -220,9 +233,7 @@ class Llvm(ConanFile):
 
         for project in projects:
             for runtime in runtimes:
-                if project == runtime and self.options.get_safe(
-                        'with_project_' + project, False) and self.options.get_safe(
-                        'with_runtime_' + runtime, False):
+                if project == runtime and self.options.get_safe('with_project_' + project, False) and self.options.get_safe('with_runtime_' + runtime, False):
                     raise ConanInvalidConfiguration(
                         f"Duplicate entry in enabled projects / runtime found for \"with_project_{project}\"")
 
@@ -234,24 +245,25 @@ class Llvm(ConanFile):
             raise ConanInvalidConfiguration(
                 "You can't link against dylib if you don't build dylib. Please also set llvm_build_llvm_dylib=True")
 
-        if self.options.with_zstd:
-            is_static_zstd = not self.dependencies["zstd"].options.get_safe("shared", False)
-            if self.options.use_static_zstd != is_static_zstd:
-                required_zstd = not is_static_zstd
-                raise ConanInvalidConfiguration("You are using {} zstd. Please set zstd/*:shared={}.".format(
-                    "static" if self.options.use_static_zstd else "shared", "False" if required_zstd else "True"))
-
         if self.options.conan_center_index_limits:
             # XXX conandata.yml is reduced in cci ci to exactly one version so we can't look it up
-            if not str(self.version) in ['13.0.1', '14.0.6', '15.0.7', '16.0.6']:
+            # 14 needed for a follow up pr, 16 and 17 are identical in requirements
+            if not str(self.version) in ['14.0.6', '17.0.2']:
                 raise ConanInvalidConfiguration(
-                    "llvm version is disabled for conan center index ci because its not the latest patch level in the configuration without the ci would run for multiple days. You can enable it with option conan_center_index_limits=False.")
+                    "llvm version is disabled for conan center index ci. We have a tight ci budget for such a huge recipe. You can enable it with option conan_center_index_limits=False.")
             if self.settings.build_type == "Debug":
                 raise ConanInvalidConfiguration(
                     "LLVM Debug builds are disabled as a workaround of conan center index ci memory limits. You can enable it with option conan_center_index_limits=False.")
             if self.options.shared:
                 raise ConanInvalidConfiguration(
                     "Shared builds are disabled for cci ci for max total build time reasons. You can enable it with option conan_center_index_limits=False.")
+            if self.is_linux():
+                if self.settings.compiler == "clang" and self.settings.compiler.version != "12":
+                    raise ConanInvalidConfiguration(
+                        "Compiler is excluded from cci ci to reduce ci time. You can enable it with option conan_center_index_limits=False.")
+                if self.settings.compiler == "gcc" and self.settings.compiler.version != "10":
+                    raise ConanInvalidConfiguration(
+                        "Compiler is excluded from cci ci to reduce ci time. You can enable it with option conan_center_index_limits=False.")
 
         if not self.options.enable_unsafe_mode:
             if self.settings.compiler == "gcc":
@@ -259,7 +271,7 @@ class Llvm(ConanFile):
                     raise ConanInvalidConfiguration(
                         "Compiler version too low for this package. If you want to try it set enable_unsafe_mode=True")
             elif self.settings.compiler == "clang":
-                if self.settings.compiler.libcxx in ['libc++']:
+                if self.is_linux() and self.settings.compiler.libcxx in ['libc++']:
                     # libc++ compiles but test linkage fails
                     raise ConanInvalidConfiguration(
                         "Configured compiler.libcxx=libc++ will fail in test_package linking. If you want to try it set enable_unsafe_mode=True")
@@ -282,21 +294,32 @@ class Llvm(ConanFile):
 
     def requirements(self):
         if self.options.with_ffi:
+            # no version requirement in llvm 13-17
             self.requires('libffi/[>3.4.0 <4.0.0]')
         if self.options.get_safe('with_zlib', False):
+            # no version requirement in llvm 13-17
             self.requires('zlib/[>1.2.0 <2.0.0]')
-        if self.options.get_safe('with_zstd', False):
-            self.requires('zstd/[>1.5.0 <2.0.0]')
         if self.options.get_safe('with_xml2', False):
-            self.requires('libxml2/[>2.9.0 <3.0.0]')
+            # min version requirement from llvm 13-17
+            self.requires('libxml2/[>=2.5.3 <3.0.0]')
         if self.options.get_safe('with_z3', False):
-            self.requires('z3/[>4.8.0 <5.0.0]')
+            # min version requirement from llvm 13-17
+            self.requires('z3/[>=4.7.1 <5.0.0]')
+        if self.options.get_safe('with_curl', False):
+            # no version requirement in llvm 14-17
+            self.requires('libcurl/[>=7.76.0 <9.0.0]')
+        if self.options.get_safe('with_zstd', False):
+            # no version number in llvm 15-17
+            self.requires('zstd/[>=1.3.5 <2.0.0]')
+        if self.options.get_safe('with_httplib', False):
+            # no version number in llvm 15-17
+            self.requires('cpp-httplib/[>=0.5.4 <1.0.0]')
 
     def build_requirements(self):
         # Older cmake versions may have issues generating the graphviz output used
         # to model the components
-        self.build_requires("cmake/[>=3.21.3 <4.0.0]")
-        self.build_requires("ninja/[>=1.10.0 <2.0.0]")
+        self.tool_requires("cmake/[>=3.21.3 <4.0.0]")
+        self.tool_requires("ninja/[>=1.10.0 <2.0.0]")
 
     def generate(self):
         tc = CMakeToolchain(self, "Ninja")
@@ -319,6 +342,10 @@ class Llvm(ConanFile):
             ', '.join(enabled_projects)))
         self.output.info('Enabled LLVM runtimes: {}'.format(
             ', '.join(enabled_runtimes)))
+
+        is_zstd_static = False
+        if self.options.get_safe('with_zstd', False):
+            is_zstd_static = not self.dependencies["zstd"].options.shared
 
         cmake = CMake(self)
         # https://releases.llvm.org/13.0.0/docs/CMake.html
@@ -379,14 +406,17 @@ class Llvm(ConanFile):
             'LLVM_USE_OPROFILE': False,
             'LLVM_USE_PERF': self.options.use_perf,
             'LLVM_ENABLE_Z3_SOLVER': self.options.with_z3,
+            'LLVM_Z3_INSTALL_DIR': Path(self.dependencies["z3"].package_folder).resolve().as_posix() if self.options.with_z3 else "",
             'LLVM_ENABLE_LIBPFM': False,
             'LLVM_ENABLE_LIBEDIT': False,
             'LLVM_ENABLE_FFI': self.options.with_ffi,
             # FORCE_ON adds required to find_package
             'LLVM_ENABLE_ZLIB': 'FORCE_ON' if self.options.get_safe('with_zlib', False) else False,
-            'LLVM_ENABLE_ZSTD': 'FORCE_ON' if self.options.get_safe('with_zstd', False) else False,
-            'LLVM_USE_STATIC_ZSTD': 'ON' if self.options.get_safe('use_static_zstd', False) else False,
             'LLVM_ENABLE_LIBXML2': 'FORCE_ON' if self.options.get_safe('with_xml2', False) else False,
+            'LLVM_ENABLE_CURL': 'FORCE_ON' if self.options.get_safe('with_curl', False) else False,
+            'LLVM_ENABLE_ZSTD': 'FORCE_ON' if self.options.get_safe('with_zstd', False) else False,
+            'LLVM_USE_STATIC_ZSTD': is_zstd_static,
+            'LLVM_ENABLE_HTTPLIB': 'FORCE_ON' if self.options.get_safe('with_httplib', False) else False,
             'LLVM_ENABLE_PROJECTS': ';'.join(enabled_projects),
             'LLVM_ENABLE_RUNTIMES': ';'.join(enabled_runtimes),
             'LLVM_USE_SANITIZER': self.options.llvm_use_sanitizer,
@@ -395,10 +425,22 @@ class Llvm(ConanFile):
         }
         if is_msvc(self):
             build_type = str(self.settings.build_type).upper()
+            runtime = str(self.settings.compiler.runtime)
+            if not runtime in ['MD', 'MT', 'MTd', 'MDd']:
+                runtime_type = str(self.settings.compiler.runtime_type)
+                if runtime_type == "Debug" and runtime == "static":
+                    runtime = 'MTd'
+                elif runtime_type == "Debug" and runtime == "dynamic":
+                    runtime = 'MTd'
+                elif runtime_type == "Release" and runtime == "static":
+                    runtime = 'MT'
+                elif runtime_type == "Release" and runtime == "dynamic":
+                    runtime = 'MD'
             cmake_definitions.update(
                 {
+                    # will be replaced in llvm 18 by CMAKE_MSVC_RUNTIME_LIBRARY
                     # llvm expects: MD, MT, MTd, MDd
-                    f"LLVM_USE_CRT_{build_type}": self.settings.compiler.runtime
+                    f"LLVM_USE_CRT_{build_type}": runtime
                 }
             )
         # Conan Center Index CI optimization, in build_type=Debug the CI is killing it because of high memory usage:
