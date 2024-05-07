@@ -1,0 +1,19 @@
+Diagnostics:
+  Suppress: ["type_unsupported"]
+  ClangTidy:
+    # ClangTidy: See checks in file `.clang-tidy`
+    FastCheckFilter: None # Run only checks measured to be fast, https://clangd.llvm.org/config#fastcheckfilter
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
+Index:
+  Background: Build
+  StandardLibrary: Yes
+InlayHints:
+  Enabled: Yes
+  BlockEnd: Yes
+  DeducedTypes: Yes
+  Designators: Yes
+  ParameterNames: Yes
+  TypeNameLimit: 24
+Hover:
+  ShowAKA: Yes

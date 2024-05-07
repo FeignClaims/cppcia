@@ -1,0 +1,219 @@
+name: ci
+on:
+  pull_request:
+  release:
+    types: [published]
+  push:
+    tags: "*"
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  Test:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      actions: read
+      contents: write
+      security-events: write
+    strategy:
+      fail-fast: false
+
+      matrix:
+        os:
+          - ubuntu-22.04
+          - windows-2022
+        compiler:
+          - gcc-13
+          - msvc
+        build_type:
+          - Debug
+          - Release
+        developer_mode:
+          - ON
+          - OFF
+
+        exclude:
+          - os: ubuntu-22.04
+            compiler: msvc
+          - os: windows-2022
+            compiler: gcc-13
+          - os: windows-2022
+            build_type: Debug
+          - os: windows-2022
+            developer_mode: ON
+
+        include:
+          # Inject gcov_executable variable
+          - compiler: gcc-13
+            gcov_executable: gcov-13
+
+          # Inject actual compiler name
+          - compiler: gcc-13
+            compiler_name: gcc
+          - compiler: msvc
+            compiler_name: msvc
+
+          # Enable pacakge for release
+          - build_type: Release
+            developer_mode: OFF
+            package_generator: ZIP
+
+    steps:
+      - name: Linux - Maximize build disk space
+        uses: easimon/maximize-build-space@v8
+        if: runner.os == 'Linux'
+        with:
+          root-reserve-mb: 30720
+          swap-size-mb: 1024
+          remove-android: "true"
+          remove-docker-images: "true"
+          remove-dotnet: "true"
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Cpp
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: ${{ matrix.compiler }}
+          vcvarsall: ${{ contains(matrix.os, 'windows')}}
+
+          cmake: true
+          ninja: true
+          ccache: true
+          python: true
+
+          cppcheck: true
+          clangtidy: true
+
+          gcovr: true
+          opencppcoverage: true
+
+      - name: Windows - Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v3
+        if: matrix.compiler_name == 'msvc'
+        with:
+          path: |
+            C:/llvm_install/
+          key: llvm-cache-${{ runner.os }}
+
+      - name: Windows - install llvm
+        if: matrix.compiler_name == 'msvc' && steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          mkdir C:\llvm
+          cd C:\llvm
+          git clone https://github.com/llvm/llvm-project.git
+          cd llvm-project
+          git checkout llvmorg-18.1.4
+          cmake -S llvm -B build -G 'Visual Studio 17 2022' -A X64 -Thost=x64 -DCMAKE_INSTALL_PREFIX=C:/llvm_install/ -DLLVM_ENABLE_ABI_BREAKING_CHECKS=OFF -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_THREADS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+          cmake --build build --config Release -t install
+
+      - name: Windows - Save llvm cache even when failed afterwards
+        uses: actions/cache/save@v3
+        if: matrix.compiler_name == 'msvc'
+        with:
+          path: |
+            C:/llvm_install/
+          key: llvm-cache-${{ runner.os }}
+
+      - name: Install and config conan
+        run: |
+          pip3 install conan
+          conan config install ./conan
+
+      - name: Retrieve conan args
+        id: conan
+        shell: bash
+        run: |
+          echo "home=$(conan config home)" >> "$GITHUB_OUTPUT"
+          echo "args=-pr:h '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -pr:b '${{ matrix.os }}-${{ matrix.compiler_name }}-x86_64' -s 'build_type=${{ matrix.build_type }}' -b missing" >> "$GITHUB_OUTPUT"
+
+      - name: Cache conan
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.conan.outputs.home }}
+          key: conan-cache-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-cache-${{ runner.os }}-
+
+      - name: Cleanup conan system packages (they are not properly cached)
+        run: |
+          conan remove '*/system' -c
+
+      - name: Checkout FeignClaims/customized_conan_recipes
+        uses: actions/checkout@v4
+        with:
+          repository: FeignClaims/customized_conan_recipes
+          path: conan_recipes
+
+      - name: Add FeignClaims/customized_conan_recipes as a conan remote
+        run: |
+          conan remote add --force local conan_recipes
+
+      - name: Install conan packages
+        run: |
+          conan install . ${{ steps.conan.outputs.args }}
+
+      - name: Clean 30 days unused conan caches
+        run: |
+          conan remove '*' --lru=30d
+
+      - name: Save conan cache even when failed afterwards
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ steps.conan.outputs.home }}
+          key: conan-cache-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+
+      - name: Unix - Configure cmake
+        if: runner.os != 'Windows'
+        run: |
+          cmake --preset ${{ matrix.compiler_name }} -D ENABLE_DEVELOPER_MODE:BOOL=${{ matrix.developer_mode }} -D OPT_WARNINGS_AS_ERRORS:BOOL=OFF -D OPT_ENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' }}
+
+      - name: Windows - Configure cmake
+        if: runner.os == 'Windows'
+        run: |
+          cmake --preset ${{ matrix.compiler_name }} -D ENABLE_DEVELOPER_MODE:BOOL=${{ matrix.developer_mode }} -D OPT_WARNINGS_AS_ERRORS:BOOL=OFF -D OPT_ENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' }} -D CMAKE_PREFIX_PATH:STRING="C:/llvm_install/lib/cmake/llvm/;C:/llvm_install/lib/cmake/clang/"
+
+      - name: Build
+        run: |
+          conan build . ${{ steps.conan.outputs.args }}
+
+      - name: Unix - Test and coverage
+        if: runner.os != 'Windows' && matrix.build_type == 'Debug'
+        working-directory: build/${{ matrix.compiler_name }}
+        run: |
+          ctest -C ${{ matrix.build_type }}
+          gcovr -j ${{ env.nproc }} --delete --root ../../ --print-summary --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
+
+      - name: Windows - Test and coverage
+        if: runner.os == 'Windows' && matrix.build_type == 'Debug'
+        working-directory: build/${{ matrix.compiler_name }}
+        run: |
+          OpenCppCoverage.exe --export_type cobertura:coverage.xml --cover_children -- ctest -C ${{matrix.build_type}}
+
+      - name: Publish to codecov
+        if: matrix.build_type == 'Debug'
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          flags: ${{ runner.os }}
+          name: ${{ runner.os }}-coverage
+          files: ./build/${{ matrix.compiler_name }}/coverage.xml
+
+      - name: CPack
+        if: matrix.package_generator != ''
+        working-directory: build/${{ matrix.compiler_name }}
+        run: |
+          cpack -C ${{ matrix.build_type }} -G ${{ matrix.package_generator }} -B _package -V
+
+      - name: Publish tagged
+        uses: softprops/action-gh-release@v1
+        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.package_generator != '' }}
+        with:
+          files: |
+            build/${{ matrix.compiler_name }}/_package/*.*

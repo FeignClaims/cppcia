@@ -1,0 +1,17 @@
+[settings]
+arch=armv8
+build_type=Release
+compiler=clang
+compiler.cppstd=20
+compiler.libcxx=libc++
+compiler.version=18
+os=Macos
+llvm/*:build_type=Release
+
+[options]
+with_llvm=True
+llvm/*:enable_unsafe_mode=True
+llvm/*:conan_center_index_limits=False
+
+[conf]
+&:tools.cmake.cmaketoolchain:generator=Ninja Multi-Config

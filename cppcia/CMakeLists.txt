@@ -1,0 +1,52 @@
+add_library(cppcia_library STATIC)
+target_sources(cppcia_library
+  PRIVATE
+  src/cppcia_main.cpp
+  src/extractor.cpp
+  src/reference.cpp
+  src/referencer.cpp
+)
+target_include_interface_directories(cppcia_library include)
+target_link_libraries(cppcia_library
+  PUBLIC
+  cppcia_project_options
+  cppcia_project_warnings
+)
+target_find_dependencies(cppcia_library
+  PUBLIC_CONFIG
+  clangd_headers
+  ctre
+  graaf
+  magic_enum
+  Microsoft.GSL
+  nlohmann_json
+  range-v3
+  fmt
+)
+target_link_system_libraries(cppcia_library
+  PUBLIC
+  clangd_headers::clangd_headers
+  ctre::ctre
+  graaf::graaf
+  magic_enum::magic_enum
+  Microsoft.GSL::GSL
+  nlohmann_json::nlohmann_json
+  range-v3::range-v3
+  fmt::fmt
+)
+
+add_executable(cppcia)
+target_sources(cppcia
+  PRIVATE
+  src/main.cpp
+)
+target_link_libraries(cppcia
+  PRIVATE
+  cppcia_library
+  cppcia_project_options
+  cppcia_project_warnings
+)
+
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

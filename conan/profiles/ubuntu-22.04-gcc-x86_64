@@ -1,0 +1,17 @@
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.cppstd=20
+compiler.libcxx=libstdc++11
+compiler.version=13
+os=Linux
+llvm/*:build_type=Release
+
+[options]
+with_llvm=True
+llvm/*:enable_unsafe_mode=True
+llvm/*:conan_center_index_limits=False
+
+[conf]
+&:tools.cmake.cmaketoolchain:generator=Ninja Multi-Config
